@@ -25,10 +25,11 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: https://mentormatch-s8vm.vercel.app/,
+    origin: ["http://localhost:5173", "https://mentormatch-s8vm.vercel.app"],
     credentials: true,
   })
 );
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
