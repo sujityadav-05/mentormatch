@@ -5,53 +5,60 @@ import express from "express";
 const app = express();
 const server = http.createServer(app);
 
+// ✅ Allow both local + deployed frontend
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://mentormatch-s8vm.vercel.app",
+];
+
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST"],
   },
 });
+
+const userSocketMap = {}; // { userId: socketId }
 
 export function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
 
-// used to store online users
-const userSocketMap = {}; // {userId: socketId}
-
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
 
   const userId = socket.handshake.query.userId;
+
   if (userId) userSocketMap[userId] = socket.id;
 
-  // io.emit() is used to send events to all the connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // Handle typing indicator
+  // ✅ Typing indicator
   socket.on("typing", (data) => {
     const receiverSocketId = userSocketMap[data.receiverId];
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("userTyping", { 
+      io.to(receiverSocketId).emit("userTyping", {
         senderId: userId,
-        isTyping: data.isTyping 
+        isTyping: data.isTyping,
       });
     }
   });
 
-  // Handle message read receipt
+  // ✅ Read receipt
   socket.on("messageRead", (data) => {
     const receiverSocketId = userSocketMap[data.senderId];
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageReadReceipt", { 
+      io.to(receiverSocketId).emit("messageReadReceipt", {
         messageId: data.messageId,
-        status: "read" 
+        status: "read",
       });
     }
   });
 
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
-    delete userSocketMap[userId];
+    if (userId) delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
